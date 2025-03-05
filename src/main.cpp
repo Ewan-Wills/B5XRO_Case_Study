@@ -5,27 +5,34 @@
 // change this to the number of steps on your motor
 #define STEPS 200
 
-// create an instance of the stepper class, specifying
-// the number of steps of the motor and the pins it's
-// attached to
-Stepper stepper(STEPS, 8, 9, 10, 11);
+//define all stepper pins
+#define xmotor1Pin1 34
+#define xmotor1Pin2 35
+
+#define xmotor2Pin1 32
+#define xmotor2Pin2 33
+
+#define ymotorPin1 25
+#define ymotorPin2 26
+
+//initialise steppers
+Stepper xStepper1(STEPS, xmotor1Pin1, xmotor1Pin2 );
+Stepper xStepper2(STEPS, xmotor2Pin1, xmotor2Pin2 );
 
 // the previous reading from the analog input
-int previous = 0;
+
 
 void setup() {
   // set the speed of the motor to 30 RPMs
-  stepper.setSpeed(30);
+  xStepper1.setSpeed(30);
 }
 
 void loop() {
-  // get the sensor value
-  int val = analogRead(0);
 
-  // move a number of steps equal to the change in the
-  // sensor reading
-  stepper.step(val - previous);
+  //step 200 steps
+  xStepper1.step(200);
+  delay(500);
+  xStepper1.step(-200);
+  delay(500);
 
-  // remember the previous value of the sensor
-  previous = val;
 }
