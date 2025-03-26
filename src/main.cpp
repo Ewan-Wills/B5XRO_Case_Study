@@ -1,70 +1,92 @@
 #include <Arduino.h>
-#include <Stepper.h>
 #include <ESP32Servo.h>
-// change this to the number of steps on your motor
-#define STEPS 200
+#include <AccelStepper.h>
 
-//define all stepper pins
-#define xmotor1Pin1 12
-#define xmotor1Pin2 14
-
+// Servo pins
 #define servo1Pin 18
 #define servo2Pin 19
 Servo servo1;
 Servo servo2;
 
+// Stepper pins for X-axis
+#define xStepPin 12
+#define xDirPin 14
 
+// Stepper pins for Y-axis (2 motors)
+#define yStepPin1 25
+#define yDirPin1 26
+#define yStepPin2 27
+#define yDirPin2 33
 
-int stepDelay = 2000;  // Initial delay between steps (microseconds)
-int minStepDelay = 500;  // Minimum delay (maximum speed)
-int acceleration = 10;  // Acceleration factor (lower value = faster acceleration)
-int totalSteps = 200;  // Total steps (1 full rotation for 1.8° step motor)
-int stepCount = 0;  // Track the number of steps taken
+// Constants for acceleration and speed
+#define maxSpeed 1000 // Max speed (steps per second)
+#define accel 500     // Acceleration (steps per second^2)
+
+// Create stepper objects
+AccelStepper xStepper(AccelStepper::DRIVER, xStepPin, xDirPin);
+AccelStepper yStepper1(AccelStepper::DRIVER, yStepPin1, yDirPin1);
+AccelStepper yStepper2(AccelStepper::DRIVER, yStepPin2, yDirPin2);
 
 void setup() {
-    Serial.begin(115200);
-    servo1.attach(servo1Pin);
-    servo2.attach(servo2Pin);
+  Serial.begin(115200);
 
-    pinMode(xmotor1Pin1, OUTPUT);
-    pinMode(xmotor1Pin2, OUTPUT);
-    digitalWrite(xmotor1Pin2, HIGH);  // Set motor direction
+  // Attach servos
+  servo1.attach(servo1Pin);
+  servo2.attach(servo2Pin);
+
+  // Initialize stepper motor pins
+  xStepper.setMaxSpeed(maxSpeed);
+  xStepper.setAcceleration(accel);
+
+  yStepper1.setMaxSpeed(maxSpeed);
+  yStepper1.setAcceleration(accel);
+
+  yStepper2.setMaxSpeed(maxSpeed);
+  yStepper2.setAcceleration(accel);
+
+  // Set stepper directions (initial direction)
+  digitalWrite(xDirPin, HIGH);
+  digitalWrite(yDirPin1, HIGH);
+  digitalWrite(yDirPin2, HIGH);
 }
 
 void loop() {
-    // Gradually accelerate
-    // while (stepCount < totalSteps) {
-    //     digitalWrite(STEP_PIN, HIGH);
-    //     delayMicroseconds(stepDelay);  // Wait for the step delay
-    //     digitalWrite(STEP_PIN, LOW);
-    //     delayMicroseconds(stepDelay);  // Wait for the next step
-        
-    //     // Increase speed by reducing the delay
-    //     if (stepDelay > minStepDelay) {
-    //         stepDelay -= acceleration;  // Increase speed (decrease delay)
-    //     }
-        
-    //     stepCount++;  // Increment step counter
-    // }
-    
-    // delay(1000);  // Wait after completing a full rotation
-    
-    // // Reverse direction for the next loop
-    // digitalWrite(DIR_PIN, !digitalRead(DIR_PIN));  // Reverse direction
-    // stepCount = 0;  // Reset step count
-    // stepDelay = 2000;  // Reset the step delay to initial value
+  // Servo movement example
+  for (int posDegrees = 0; posDegrees <= 180; posDegrees++) {
+    servo1.write(posDegrees);
+    servo2.write(posDegrees);
+    delay(20);
+  }
 
-    for(int posDegrees = 0; posDegrees <= 180; posDegrees++) {
-        servo1.write(posDegrees);
-        servo2.write(posDegrees);
-        Serial.println(posDegrees);
-        delay(20);
-      }
-    
-      for(int posDegrees = 180; posDegrees >= 0; posDegrees--) {
-        servo1.write(posDegrees);
-        servo2.write(posDegrees);
-        Serial.println(posDegrees);
-        delay(20);
-      }
-    }
+  for (int posDegrees = 180; posDegrees >= 0; posDegrees--) {
+    servo1.write(posDegrees);
+    servo2.write(posDegrees);
+    delay(20);
+  }
+
+  // Stepper synchronized motion example
+  xStepper.moveTo(400); // Move X-axis 400 steps
+  yStepper1.moveTo(400); // Move Y-axis motor 1 400 steps
+  yStepper2.moveTo(400); // Move Y-axis motor 2 400 steps
+
+  while (xStepper.distanceToGo() > 0 || yStepper1.distanceToGo() > 0 || yStepper2.distanceToGo() > 0) {
+    xStepper.run();
+    yStepper1.run();
+    yStepper2.run();
+  }
+
+  delay(1000); // Pause after movement
+
+  // Reverse direction and move back
+  xStepper.moveTo(-400);
+  yStepper1.moveTo(-400);
+  yStepper2.moveTo(-400);
+
+  while (xStepper.distanceToGo() > 0 || yStepper1.distanceToGo() > 0 || yStepper2.distanceToGo() > 0) {
+    xStepper.run();
+    yStepper1.run();
+    yStepper2.run();
+  }
+
+  delay(1000); // Pause after movement
+}
