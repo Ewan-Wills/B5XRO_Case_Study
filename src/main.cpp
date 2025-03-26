@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include <ESP32Servo.h>
-#include <AccelStepper.h>
 
 #define rackServoPin 19
 #define screwServoPin 18
@@ -18,23 +17,17 @@ Servo screwServo;
 #define rackSpeed 100
 
 // Stepper pins for X-axis
-#define xStepPin 12
-#define xDirPin 14
+//right stepper driver
+#define xStepPin 27
+#define xDirPin 26
 
 // Stepper pins for Y-axis (2 motors)
+//middle stepper driver
 #define yStepPin1 25
-#define yDirPin1 26
-#define yStepPin2 27
-#define yDirPin2 33
-
-// Constants for acceleration and speed
-#define maxSpeed 1000 // Max speed (steps per second)
-#define accel 500     // Acceleration (steps per second^2)
-
-// Create stepper objects
-AccelStepper xStepper(AccelStepper::DRIVER, xStepPin, xDirPin);
-AccelStepper yStepper1(AccelStepper::DRIVER, yStepPin1, yDirPin1);
-AccelStepper yStepper2(AccelStepper::DRIVER, yStepPin2, yDirPin2);
+#define yDirPin1 33
+//leftmost stepper driver
+#define yStepPin2 12
+#define yDirPin2 14
 
 void screw(int value)
 {
@@ -90,6 +83,53 @@ void putDown()
   screw(screwOff);
   rackUp(-1);
 }
+#define x 0x0
+#define y 0x1
+
+// motor = 1 for x and 2 for y
+void moveStepper(uint8_t motor, int steps, int stepDelay = 2000)
+{
+  int thisDir;
+  int thisStep;
+  uint8_t direction;
+
+  if (steps < 0)
+  {
+    direction = LOW;
+    steps = steps * -1;
+  }
+  else
+  {
+    direction = HIGH;
+  }
+  if (motor == x)
+  {
+    digitalWrite(xDirPin, direction); // set direction
+    for (int i = 0; i <= steps; i++)
+    {
+
+      digitalWrite(xStepPin, HIGH);
+      delayMicroseconds(stepDelay); // Wait for the step delay
+      digitalWrite(xStepPin, LOW);
+      delayMicroseconds(stepDelay); // Wait for the next step
+    }
+  }
+  if (motor == y)
+  {
+    digitalWrite(yDirPin1, direction); // set direction
+    digitalWrite(yDirPin2, !direction); // set direction
+
+    for (int i = 0; i <= steps; i++)
+    {
+      digitalWrite(yStepPin1, HIGH);
+      digitalWrite(yStepPin2, HIGH);
+      delayMicroseconds(stepDelay); // Wait for the step delay
+      digitalWrite(yStepPin1, LOW);
+      digitalWrite(yStepPin2, LOW);
+      delayMicroseconds(stepDelay); // Wait for the next step
+    }
+  }
+}
 void setup()
 {
   Serial.begin(115200);
@@ -100,19 +140,16 @@ void setup()
   screw(screwOff);
   delay(100);
 
-  // Initialize stepper motor pins
-  xStepper.setMaxSpeed(maxSpeed);
-  xStepper.setAcceleration(accel);
-
-  yStepper1.setMaxSpeed(maxSpeed);
-  yStepper1.setAcceleration(accel);
-
-  yStepper2.setMaxSpeed(maxSpeed);
-  yStepper2.setAcceleration(accel);
-
-  // Set stepper directions (initial direction)
+  pinMode(xStepPin, OUTPUT);
+  pinMode(xDirPin, OUTPUT);
   digitalWrite(xDirPin, HIGH);
+
+  pinMode(yStepPin1, OUTPUT);
+  pinMode(yDirPin1, OUTPUT);
   digitalWrite(yDirPin1, HIGH);
+
+  pinMode(yStepPin2, OUTPUT);
+  pinMode(yDirPin2, OUTPUT);
   digitalWrite(yDirPin2, HIGH);
 }
 void loop()
@@ -129,31 +166,23 @@ void loop()
   // Serial.println("Waiting");
   // delay(5000);
 
-  // Stepper synchronized motion example
-  xStepper.moveTo(400);  // Move X-axis 400 steps
-  yStepper1.moveTo(400); // Move Y-axis motor 1 400 steps
-  yStepper2.moveTo(400); // Move Y-axis motor 2 400 steps
+  Serial.println("left 200 steps");
+  moveStepper(x, 200);
 
-  while (xStepper.distanceToGo() > 0 || yStepper1.distanceToGo() > 0 || yStepper2.distanceToGo() > 0)
-  {
-    xStepper.run();
-    yStepper1.run();
-    yStepper2.run();
-  }
+  delay(1000);
 
-  delay(1000); // Pause after movement
+  Serial.println("right 200 steps");
+  moveStepper(x, -200);
 
-  // Reverse direction and move back
-  xStepper.moveTo(-400);
-  yStepper1.moveTo(-400);
-  yStepper2.moveTo(-400);
+  delay(1000);
 
-  while (xStepper.distanceToGo() > 0 || yStepper1.distanceToGo() > 0 || yStepper2.distanceToGo() > 0)
-  {
-    xStepper.run();
-    yStepper1.run();
-    yStepper2.run();
-  }
+  Serial.println("backwards 200 steps");
+  moveStepper(y, 200);
 
-  delay(1000); // Pause after movement
+  delay(1000);
+
+  Serial.println("forewards 200 steps");
+  moveStepper(y, -200);
+
+  delay(1000);
 }
